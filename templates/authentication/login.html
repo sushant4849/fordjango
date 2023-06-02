@@ -1,0 +1,54 @@
+{% extends 'authentication.html' %}
+{% load static %}
+{% block title %}
+    Login
+{% endblock title %}
+{% block content %}
+<body id="body">
+
+    <section class="signin-page account">
+      <div class="container">
+        <div class="row">
+          <div class="col-md-6 col-md-offset-3">
+            <div class="block text-center">
+              
+                <img src="{%static 'images/logo.png'%}" alt="">
+
+              <h2 class="text-center">Welcome Back</h2>
+              <form class="text-left clearfix" action="{%url 'login'%}" method="POST" >
+                {% csrf_token %}
+                <div class="form-group">
+                  <input type="text" name="phone" class="form-control"  placeholder="Phone" value="{{value}}">
+                </div>
+                <div class="form-group">
+                  <input type="password" name = "password" class="form-control" placeholder="Password">
+                </div>
+                <div class="text-center">
+                    <input type="Submit" value="Login" class="btn btn-main text-center">
+                </div>
+              </form>
+              <p class="mt-20">New in this site ?<a href="{%url 'register'%}"> Create New Account</a></p>
+              <div class="form-group">
+                {% include 'partials/messages.html' %}
+              </div>
+            </div>
+            
+
+                
+          </div>
+        </div>
+      </div>
+    </section>
+    {% block script %}
+    <script type="text/javascript" src="https://otpless.com/auth.js"></script>
+    <!-- Get user's whatsapp number and name -->
+    <script type="text/javascript">
+      function otpless(otplessUser) {
+       var waName = otplessUser.waName;
+       var waNumber = otplessUser.waNumber;
+       // Signup/signin the user and redirect to next page
+      }
+    </script>
+    {% endblock script %}
+
+{% endblock content %}

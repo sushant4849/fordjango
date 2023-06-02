@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<section class="page-header">
+	<div class="container">
+		<div class="row">
+			<div class="col-md-12">
+				<div class="content">
+					<h1 class="page-name">Dashboard</h1>
+					<ol class="breadcrumb">
+						<li><a href="{%url 'home'%}">Home</a></li>
+						<li class="active">My Account</li>
+					</ol>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+<section class="user-dashboard page-wrapper">
+  <div class="container">
+    <div class="row">
+      <div class="col-md-12">
+        <ul class="list-inline dashboard-menu text-center">
+          <li><a href="{%url 'orders'%}">Orders</a></li>  
+          <li><a class="active"  href="{%url 'userprofile'%}">Profile Details</a></li>
+        </ul>
+        <div class="dashboard-wrapper dashboard-user-profile">
+          <div class="media">
+            <div class="media-body">
+                <form method="POST" enctype="multipart/form-data">
+                  {% csrf_token %}
+                    <ul style="display: flex; flex-direction: column; align-items: left;" class="user-profile-list">
+                      {% include 'partials/messages.html' %}
+                        <li style="padding: 5px 0;"><span>First Name:</span>{{form.first_name}}</li>
+                        <li style="padding: 5px 0;"><span>Last Name:</span>{{form.last_name}}</li>
+                        <div class="form-group">
+                          <div class="form-group">
+                            <select required name="city" id="city-select" class="form-control">
+                                <option value="" selected>Select City</option>
+                                {% for city in cities %}
+                                    <option value="{{ city }}">
+                                        {{ city }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <select required name="area" id="area-select" class="form-control">
+                                  <option value="" selected>Select Area</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                          <select required name="delivery_point" id="delivery-point-select" class="form-control">
+                            {% if request.user.delivery_point %}
+                            <option value="{{request.user.delivery_point}}" selected>{{request.user.delivery_point}}</option>
+                            <option value="" selected>Select Delivery Point</option>
+                            {% endif %}
+                              
+                          </select>
+                      </div>
+                        <li style="padding: 5px 0;"><span>Phone:</span>{{form.phone}}</li>
+                        <h5>Please note that if you change your phone number we'll need to re-verify you.</h5>
+                        <input  type="submit" class="btn btn-main text-center " value="Submit">
+                      </ul>
+
+                </form>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+  </body>
+  </html>
+  {% block script %}
+  <script>
+    window.onload = function() {
+        var citySelect = document.getElementById('city-select');
+        var areaSelect = document.getElementById('area-select');
+        var deliveryPointSelect = document.getElementById('delivery-point-select');
+
+        // Add event listener to city select
+        citySelect.addEventListener('change', function() {
+            // Send Ajax request to get areas for selected city
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    // Update options in area select
+                    var areas = JSON.parse(xhr.responseText);
+                    areaSelect.innerHTML = '<option value="" selected>Select Area</option>';
+                    for (var i = 0; i < areas.length; i++) {
+                        var option = document.createElement('option');
+                        option.value = areas[i];
+                        option.innerHTML = areas[i];
+                        areaSelect.appendChild(option);
+                    }
+                    // Reset delivery point select
+                    deliveryPointSelect.innerHTML = '<option value="" selected>Select Delivery Point</option>';
+                }
+            };
+            xhr.open('GET', '/authentication/get_areas_for_city/?city=' + citySelect.value, true);
+            xhr.send();
+        });
+
+        // Add event listener to area select
+        areaSelect.addEventListener('change', function() {
+            // Send Ajax request to get delivery points for selected area
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState === 4 && xhr.status === 200) {
+                    // Update options in delivery point select
+                    var deliveryPoints = JSON.parse(xhr.responseText);
+                    deliveryPointSelect.innerHTML = '<option value="" selected>Select Delivery Point</option>';
+                    for (var i = 0; i < deliveryPoints.length; i++) {
+                        var option = document.createElement('option');
+                        option.value = deliveryPoints[i].id;
+                        option.innerHTML = deliveryPoints[i].name;
+                        deliveryPointSelect.appendChild(option);
+                    }
+                }
+            };
+            xhr.open('GET', '/authentication/get_delivery_points_for_area/?area=' + areaSelect.value, true);
+            xhr.send();
+        });
+    }
+</script>
+{% endblock script %}
+{% endblock content %}

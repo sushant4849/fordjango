@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}
+    Home
+{% endblock title %}
+{% block content %}
+<div class="container">
+    {% include 'partials/messages.html' %}
+</div>
+  <section class="products section bg-gray">
+      <div class="container">
+          <div class="row">
+            <form action="{%url 'search'%}" method="POST">
+              {% csrf_token %}
+              <input name = 'search' class="form-control" list="datalistOptions" id="exampleDataList" placeholder="Type to search...">
+            </form>
+              <div class="title text-center">
+
+                  <h2>Products for you:</h2>
+              </div>
+          </div>
+          <div class="row">
+            {% if available_products%}
+            {% for product in available_products %}
+            <div class="col-md-4">
+                <div class="product-item">
+                    <div class="product-thumb">
+                        <img class="img-responsive" src="{{product.image.url}}" alt="product-img" />
+                        <div class="preview-meta">
+                            <ul>
+                                <li>
+                                    {% if product.quantity != 0 %}
+                                      <a href="{%url 'add_to_cart' product.id%}"><i class="tf-ion-android-cart"></i></a>
+                                      {% else %}
+                                      <p>Not available</p>
+                                    {% endif %} 
+                                </li>
+                            </ul>
+                          </div>
+                    </div>
+                    <div class="product-content">
+                        <h4><a href="{%url 'product' product.id%}">{{product.title}}</a></h4>
+                        <p class="price">₹{{product.price}}</p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <div class="row">
+              <div class="title text-center">
+                  <h1>"Sorry, No products available. Come back later</h1>
+              </div>
+          </div>
+            {% endif %}
+
+                
+
+          
+
+  
+          </div>
+      </div>
+  </section>
+  
+  
+  <!--
+  Start Call To Action
+  ==================================== -->
+   <!-- End section -->
+  
+  <!-- <section class="section instagram-feed">
+      <div class="container">
+          <div class="row">
+              <div class="title">
+                  <h2>View us on instagram</h2>
+              </div>
+          </div>
+          <div class="row">
+              <div class="col-12">
+                  <div class="instagram-slider" id="instafeed" data-accessToken="IGQVJYeUk4YWNIY1h4OWZANeS1wRHZARdjJ5QmdueXN2RFR6NF9iYUtfcGp1NmpxZA3RTbnU1MXpDNVBHTzZAMOFlxcGlkVHBKdjhqSnUybERhNWdQSE5hVmtXT013MEhOQVJJRGJBRURn"></div>
+              </div>
+          </div>
+      </div>
+  </section> -->
+{% endblock content %}

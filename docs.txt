@@ -1,0 +1,170 @@
+Hi,
+
+In this docs I'm going to explain how each function works, and along the way you'll get the idea of how I created the models
+
+Models are really simple (Delivery Point, Product, Delivery, Order, Order Item, Cart, Comment, Category, ProductImages)
+
+
+
+
+So, we'll go through each function, and explain how it works.
+
+First of all, the project contain 4 apps (Despite the coupons app because it's not important since the client didn't request it but it's implemented)
+
+
+1- Users app:
+
+	I have modified the main user class to ( No username [Phone number instead] ) and added city/area/delivery point
+
+	userprofile: Just shows the user details.
+	
+	profile_edit: Most of its functionality is the same as the register, it checks if phone number exists, or valid. Shows areas/delivery points according to the city/area user chooses,
+	And edits the user 
+
+	cancel_order: This function works when the user cancels his order in ' Orders ' page
+
+
+
+2- Authentication app:
+	Login function: this is basic login function, uses phone/password and does all the authentication requirements
+	
+	register: This function fetches all delivery points in the database to display them, and all cities/areas that into that delivery point.
+	then basic validation conditions.
+
+	get_areas_for_city: This function works when the user is registering, by sending a request using Javascript (in the authentication/reigster.html)
+	and then it shows the areas according to the city the user he has chosen
+
+	get_delivery_points_for_area: Same idea, but shows the delivery points that are available in that area user has chosen after city.
+
+	logout: just a logout function
+
+
+
+3- Home app:
+	home: This function is just to show the availabe products for the user, calls a function in utils.py that filters the products according to their tags
+	If there is a product with tags of (DP: New Delhi - DP: <Another area or city>), it'll be shown to only users that their area is New Delhi and <Another area or city>
+
+
+4- Shop app:
+	This is the most important app.
+
+	product: this function works when the user clicks on a product, it shows the product details
+
+	add_to_cart: this function works either when the user presses on the cart button without entering the product page,
+	and it will add only one quantity unit of that product, but if user adds the product from the product page and type a quantity,
+	it'll be added with that quantity,
+	And basically each product added to cart, has its on ' Cart ' object at the database, so we also check if that product cart he's adding already exists or not,
+	if it exists, the quantity is increased, if not, then it creates a new cart object of that product, and so on
+
+
+	cart function: This fetches all cart(s) for the user, remember that every product the user added to cart has its own cart object
+	and calculates the total price of all his carts
+
+	
+	remove_cart: This basically works when the user clicks on remove button in cart page on an item, and it deletes that item from the cart.
+
+	add_comment (Not important): Just create a comment object, it works when a user posts a comment on a product
+
+	
+
+	checkout: This one might seem a bit complicated, but to understand it, you need to understand first how the models work..
+	Before user checkouts (GET):
+	-If the user makes an order for the first time, he selects a delivery point, if not, his previous delivery point is selected and he can change it
+	And it shows him delivery points according to his city, and according to the items' cart city/area availablity
+
+	-Fetches all user carts (Cart items)
+	-To calculate the estimated delivery date for the order, we get the furthest product's estimated delivery date
+	-If there is coupons, it fethces it with session and checks if it matches any coupons in database with validation too (But that's not important)
+	Calculates the total and subtotal
+
+	When user presses on Place Order Button (POST):
+	-It gets his full name, divides it into first name and last name, then save it to the user
+	
+	- It checks if the user has changed his delivery point or not
+
+	- Saves the phone number
+
+	- And then calculates the order_number, (Suppose user has made 2 orders today, and this is the third order for him, order_number will be 3)
+
+	- Then saves all order details
+
+	- Creates a delivery object for the order
+
+	- And then, it creates an order item object for each cart (Cart item), and assigns these order items to the order was created before
+
+	- Then deletes the user carts, pops the coupon from session (if there was)
+
+	
+
+
+	success:
+	This function just fetches that delivery was just made and displays data of it
+
+
+	orders:
+	-Fetches all the user's orders, but actually most of the important data are into the delivery objects, not order objects, so we'll fetch all deliveries of user's orders
+	And then sends these deliveries/orders in the context to show their data, user can't cancel his order if the estimated delivery date of this order is today. and default status message for the order is the Text1 at any order's product, default status is Ready
+
+	
+	search:
+	-Just for the search
+
+
+
+
+
+
+Admin.py file in shop app:
+	I will explain the important admin models there, other ones are basic/simple
+	OrderItemAdmin:
+	- This has a bulk function to change all selected objects to done
+	- Calcuates the total quantity of filtered objects for each product
+	- Changes the main admin template just to be able to show the total quantity I calcuated for each product that is there
+
+
+
+	DeliveryAdmin:
+	I have made many bulk functions for this admin model, and overridden the main action form to contain some fields to be able to make actions in bulk
+	-postpone: This function works when you choose Postpone from actions and type a date then press ' Go ', this will change all selected objects' status to Postponed, and Postpone Date to the date entered.
+	-update_status_message: This function works when you write a status message in choose Update Status Message, it assigns a status message to selected objects. Which shows besides the status in Orders page
+	-update_status_cancelled/delivered/dispatched: Changes the status to cancelled/delivered/dispatched for the selected objects.
+	-assign_tracking_codes: This function works when you chooose ' Assign Tracking Codes ' and enter a starting tracking code and press Go, It assigns all selected objects' Tracking code
+	say, we entered 100, then it loops through the selected objects and assigns the tracking codes like 100, 101, 102, etc
+
+	
+	DeliveryPointAdmin:
+	It has a function (total_quantity) that calculates the how many order items' were sold in that delivery point
+
+
+
+
+
+The reason I have delivery_point, area, city, phone number CharFields in Delivery Model, and Order Item Model is just that when the user submits an order,
+It saves these attributes to the user's data, the way I didn't user a relation is that it'll always be connected to the user and if the user changes his data, the delivery data will also be changed (Which isn't required)
+
+
+Please contact me if there is anything that is not obvious in the code, I'll explain it
+
+Thank you
+
+
+	
+
+	
+	
+
+
+
+
+
+	
+
+	
+	
+	
+
+
+	
+	
+
+

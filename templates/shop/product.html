@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}
+    Product Detail
+{% endblock title %}
+{% load static %}
+{% block content %}
+<section class="single-product">
+	<div class="container">
+		<div class="row">
+			<div class="col-md-6">
+				<ol class="breadcrumb">
+					<li><a href="{%url 'home'%}">Home</a></li>
+					<li class="active">{{product.title}}</li>
+				</ol>
+			</div>
+		</div>
+		<div class="row mt-20">
+			<div class="col-md-5">
+				<div class="single-product-slider">
+					<div id='carousel-custom' class='carousel slide' data-ride='carousel'>
+						<div class='carousel-outer'>
+							<!-- me art lab slider -->
+							<div class='carousel-inner '>
+								<div class='item active'>
+									<img src='{{product.image.url}}' alt='' data-zoom-image="{{product.image.url}}" />
+								</div>
+                                
+                                {% for image in images %}
+								<div class='item'>
+									<img src='{{image.image.url}}' alt='' data-zoom-image="{{image.image.url}}" />
+								</div>
+                                {% endfor %}
+
+								
+							</div>
+						</div>
+						
+						<!-- thumb -->
+						<ol class='carousel-indicators mCustomScrollbar meartlab'>
+							<li data-target='#carousel-custom' data-slide-to='0' class='active'>
+								<img src='{{product.image.url}}' alt='' />
+							</li>
+                            
+                            {% for image in images %}
+                            <li data-target='#carousel-custom' data-slide-to='1'>
+								<img src='{{image.image.url}}'/>
+							</li>
+                            {% endfor %}
+                                
+
+
+						</ol>
+					</div>
+				</div>
+			</div>
+			<div class="col-md-7">
+				<div class="single-product-details">
+					<h2>{{product.title}}</h2>
+					<p class="product-price">₹{{product.price}} per {{product.quantity_unit}}</p>
+					
+					<p class="product-description mt-20">
+						{{product.description}}
+					</p>
+			
+					<!-- <div class="color-swatches">
+						<span>color:</span>
+						<ul>
+							<li>
+								<a href="#!" class="swatch-violet"></a>
+							</li>
+							<li>
+								<a href="#!" class="swatch-black"></a>
+							</li>
+							<li>
+								<a href="#!" class="swatch-cream"></a>
+							</li>
+						</ul>
+					</div> -->
+					<div class="product-category">
+						<span>Categories:</span>
+						<ul>
+							<li><a href="product-single.html">{{product.category1}}</a></li>
+
+						</ul>
+					</div>
+					{% if product.quantity == 0 %}
+						<h5>This product is out of stock.</h5>
+					{% endif %}
+					<h4></h4>
+					<form method="post" action="{%url 'add_to_cart' product.id%}">
+						{% csrf_token %}
+						<div class="product-quantity">
+							{% if product.quantity != 0 %}
+							<span>Quantity ({{product.quantity_unit}}):</span>
+							<div class="product-quantity-slider">
+								<input id="product-quantity" type="number" value="1" name="quantity" min="1" max="{{product.quantity}}">
+							</div>
+						</div>
+						<input type="submit" value="Add to cart" class="btn btn-main mt-20">
+						{% else %}
+
+							{% endif %}
+
+					</form>
+
+
+
+				</div>
+			</div>
+		</div>
+		<div class="row">
+			<div class="col-xs-12">
+				<div class="tabCommon mt-20">
+					<ul class="nav nav-tabs">
+						<li class="active"><a data-toggle="tab" href="#reviews" aria-expanded="true">Reviews ({{number_of_comments}})</a></li>
+					</ul>
+					<div class="tab-content patternbg">
+						<div id="details" class="tab-pane fade active in">
+							<div class="post-comments">
+						    	<ul class="media-list comments-list m-bot-50 clearlist">
+								    <!-- Comment Item start-->
+									
+									{% for comment in comments %}
+									<li class="media">
+
+								        <div class="media-body">
+								            <div class="comment-info">
+								                <h4 class="comment-author">
+								                    <a href="#!">{{comment.user.full_name}}</a>
+								                	
+								                </h4>
+								                <time datetime="2013-04-06T13:53">{{comment.created_at}}</time>
+								            </div>
+
+								            <p>
+								               {{comment.comment}}
+								            </p>
+								        </div>
+										
+
+								    </li>
+									{% endfor %}
+										
+
+								    <!-- End Comment Item -->
+									
+									{% if user.is_authenticated %}
+									<form action="{%url 'add_comment' product.id%}" method="POST">
+										{% csrf_token %}
+										<div class="mb-3">
+											<label for="exampleFormControlTextarea1" class="form-label">Your review matters:</label>
+											<textarea required class="form-control input" id="exampleFormControlTextarea1" rows="5" name = "comment" style="resize:none;"></textarea>
+											<br>
+											<input type="submit" class = "btn btn-main btn-medium" value="Submit">
+										  </div>
+									</form>
+
+									  {% else %}
+									  <h4>You must be logged in order to post a review.</h4>
+									{% endif %}
+										
+
+							</ul>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+{% endblock content %}

@@ -1,0 +1,15 @@
+{% extends 'admin/change_list.html' %}
+
+{% block result_list %}
+    {{ block.super }}
+    {% if total_quantities %}
+        <div>
+            <h2>Total Quantities:</h2>
+            <ul>
+            {% for product, quantity in total_quantities.items %}
+                <li>Total Quantity of {{ product }}: {{ quantity }} KG</li>
+            {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+{% endblock %}

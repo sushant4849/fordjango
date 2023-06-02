@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block content %}
+<section class="user-dashboard page-wrapper">
+	<div class="container">
+		<div class="row">
+			<div class="col-md-12">
+				<ul class="list-inline dashboard-menu text-center">
+					<li><a class="active" href="{%url 'orders'%}">Orders</a></li>
+					<li><a href="{%url 'userprofile'%}">Profile Details</a></li>
+				</ul>
+				<div class="dashboard-wrapper user-dashboard">
+					<div class="table-responsive">
+						{% if deliveries %}
+						<table class="table">
+							<thead>
+								<tr>
+									<th>Order Number</th>
+									<th>Order Items</th>
+									<th>Date</th>
+									<th>Arrival Date</th>
+									<th>Tracking Code</th>
+									<th>Total Price</th>
+									<th>Delivery Point</th>
+									<th>Status</th>
+									<th></th>
+									<th></th>
+								</tr>
+							</thead>
+							<tbody>
+                                    {% for delivery in deliveries %}
+                                    <tr>
+                                        <td>#{{delivery.order.number}}</td>
+                                        <td>
+
+										{% for item in delivery.order.orderitem_set.all|slice:":3"%}
+											{{item.quantity}}{{item.product.quantity_unit}} of {{item.product}}
+										{% endfor %}
+										{% if delivery.order.orderitem_set.all.count > 3 %}
+										........
+										{% endif %}
+											</td>
+                                        <td>{{delivery.order.created_at}}</td>
+										<td>{{delivery.estimated_delivery_date}}</td>
+										<td>{% if delivery.tracking_code %}
+											#{{delivery.tracking_code}}
+											{% else %}
+											<p>Not assigned yet.</p>
+										{% endif %} </td>
+                                        <td>${{delivery.order.total_price}}</td>
+										<td>{{delivery.delivery_point}}</td>
+										{% if delivery.status == 'Ready' %}
+                                        <td><span class="label label-primary">{{delivery.status}}</span></td>
+
+                                        {% elif delivery.status == 'Dispatched' %}
+                                        <td><span class="label label-info">{{delivery.status}}</span></td>
+
+                                        {% elif delivery.status == 'Delivered' %}
+                                        <td><span class="label label-success">{{delivery.status}}</span></td>
+
+                                        {% elif delivery.status == 'Cancelled' %}
+                                        <td><span class="label label-danger">{{delivery.status}}</span></td>
+
+                                        {% elif delivery.status == 'Postponed' %}
+                                        <td><span class="label label-warning">{{delivery.status}}</span></td>
+
+                                        {% endif %}
+
+											{% if not delivery.status_message %}
+											<td>{{delivery.order.orderitem_set.first.product.text_1}}</td>
+											{% else %}
+											<td>{{delivery.status_message}}</td>
+											{% endif %}
+										{% if delivery.status == 'Cancelled' %}
+											<td></td>
+										{% elif delivery.estimated_delivery_date != today%}
+										<td>
+											<a id="cancel-btn {{delivery.id}}" href="{% url 'cancel_order' delivery.id %}" class="btn" style="color: rgb(182, 0, 0);">Cancel</a>
+										</td>
+										{% elif delivery.estimated_delivery_date == today %}
+										<td>
+											<a disabled href="#" class="btn" style="color: rgb(182, 0, 0);">Deliveres Today</a>
+										</td>
+										{% elif delivery.estimated_delivery_date > today %}
+										<td>
+											<a disabled href="#" class="btn" style="color: rgb(182, 0, 0);">Deliveres</a>
+										</td>
+										{% endif %}
+
+                                    </tr>
+                                    {% endfor %}
+
+							</tbody>
+						</table>
+						{% else %}
+						<h2>You have made no orders yet. We are waiting for your first order!</h2>
+						{% endif %}
+
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+<script>
+	// Get all cancel buttons and add event listeners to them
+	document.querySelectorAll('[id^="cancel-btn"]').forEach(function(cancelBtn) {
+	  cancelBtn.addEventListener("click", function(event) {
+		event.preventDefault();
+		var orderId = cancelBtn.id.split(' ')[1]; // Get the order ID from the ID of the cancel button
+		
+		if (confirm("Are you sure you want to cancel this order?")) {
+		  // Send an AJAX request to cancel the order
+		  var xhr = new XMLHttpRequest();
+		  xhr.open("POST", "{% url 'cancel_order' 0 %}".replace('0', orderId));
+		  xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+		  xhr.setRequestHeader("X-CSRFToken", '{{csrf_token}}'); // Set the CSRF token in the request headers
+		  
+		  xhr.onload = function() {
+			if (xhr.status === 200) {
+			  // Order was successfully cancelled
+			  alert("Order cancelled successfully");
+			  // Reload the page to update the order status
+			  location.reload();
+			} else {
+			  // Error occurred while cancelling the order
+			  alert("Failed to cancel order. Please try again later.");
+			}
+		  };
+		  xhr.send(JSON.stringify({}));
+		}
+	  });
+	});
+	</script>
+
+
+{% endblock content %}

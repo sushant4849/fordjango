@@ -1,0 +1,84 @@
+{% extends 'authentication.html' %}
+{% load static %}
+{% block title %}
+    Register
+{% endblock title %}
+{% block content %}
+<body id="body">
+
+    <section class="signin-page account">
+      <div class="container">
+        <div class="row">
+          <div class="col-md-6 col-md-offset-3">
+            <div class="block text-center">
+                <img src="{%static 'images/logo.png'%}" alt="">
+              <h2 class="text-center">Create Your Account</h2>
+              <form class="text-left clearfix" action="{%url 'register'%}" method="POST">
+                {% csrf_token %}
+                <div class="form-group">
+                  <input name = 'phone' type="text" class="form-control"  value="{{values.phone}}" placeholder="Phone Number">
+                </div>
+                <div class="form-group">
+                  <select required name="city" id="city-select" class="form-control">
+                      <option value="" selected>Select City</option>
+                      {% for city in cities %}
+                          <option value="{{ city }}">
+                              {{ city }}
+                          </option>
+                      {% endfor %}
+                  </select>
+              </div>
+              <div class="form-group">
+                  <select required name="area" id="area-select" class="form-control">
+                      <option value="" selected>Select Area</option>
+                  </select>
+              </div>
+                <div class="form-group">
+                  <input name = 'password1' type="password" class="form-control"  placeholder="Password">
+                </div>
+                <div class="form-group">
+                  <input name = 'password2' type="password" class="form-control"  placeholder="Verify Password">
+                </div>
+                <div class="text-center">
+                  <input type="submit" class="btn btn-main text-center" value="Register">
+                </div>
+              </form>
+              <p class="mt-20">Already have an account ? <a href="{%url 'login'%}">Login</a></p>
+
+              {% include 'partials/messages.html' %}
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+    {% block script %}
+    <script>
+      window.onload = function() {
+          var citySelect = document.getElementById('city-select');
+          var areaSelect = document.getElementById('area-select');
+  
+          // Add event listener to city select
+          citySelect.addEventListener('change', function() {
+              // Send Ajax request to get areas for selected city
+              var xhr = new XMLHttpRequest();
+              xhr.onreadystatechange = function() {
+                  if (xhr.readyState === 4 && xhr.status === 200) {
+                      // Update options in area select
+                      var areas = JSON.parse(xhr.responseText);
+                      areaSelect.innerHTML = '<option value="" selected>Select Area</option>';
+                      for (var i = 0; i < areas.length; i++) {
+                          var option = document.createElement('option');
+                          option.value = areas[i];
+                          option.innerHTML = areas[i];
+                          areaSelect.appendChild(option);
+                      }
+                  }
+              };
+              xhr.open('GET', '/authentication/get_areas_for_city/?city=' + citySelect.value, true);
+              xhr.send();
+          });
+      }
+  </script>
+    {% endblock script %}
+{% endblock content %}
