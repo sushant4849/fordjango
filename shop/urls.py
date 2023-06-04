@@ -13,6 +13,7 @@ urlpatterns = [
     path('api/get_orderDetails/', views.get_orderDetails, name='get_orderDetails'),
     path('api/cancel_order/', views.cancel_order, name='cancel_order'),
     path('api/order_success/<int:pk>', views.order_success_page, name='order_success_page'),
-    path('api/initiate_payment1/', views.initiate_payment1, name='initiate_payment1'),
+    path('api/initiate_payment_standard/', views.initiate_payment_standard, name='initiate_payment_standard'),
+    path('api/initiate_payment_upi/', views.initiate_payment_upi, name='initiate_payment_upi'),    
     path('api/callback/', views.callback_url, name='callback'),
 ]

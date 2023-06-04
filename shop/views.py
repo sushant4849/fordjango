@@ -23,6 +23,7 @@ import base64
 import hashlib
 import json
 from django.http import HttpResponseBadRequest
+from django.http import HttpResponse
 import time
 import requests
 from django.http import JsonResponse
@@ -128,89 +129,15 @@ def phonepe_callback(request):
     return HttpResponse(status=200)
 
 
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def initiate_payment(request):
-    # https://developer.phonepe.com/v1/reference/pay-api-1
-    # INTEGRATE THIS WITH CHECKOUT PLEASE
-    # This will change later
-    # YOU WILL NEED DATA RELATING THE CART LIKE IN CHECKOUT, GET ALL THAT THIS IS BASICALLY A CHECKOUT FUNCTION TO START PAYMENT
-    # https://developer.phonepe.com/v1/docs/test-environment-credentials-9
-    
-    
-    url = 'https://api-preprod.phonepe.com/apis/merchant-simulator/pg/v1/pay'
-    headers = {
-        'Content-Type': 'application/json',
-        'X-VERIFY': ''
-    }
-
-    # KINDLY LOOK AT THIS AND FIGURE OUT ALL THE INFO HERE THANK YOU
-    payload = {
-        "merchantId": merchant_id,
-        "merchantTransactionId": "MT7850590068188104", # GENERATE THIS
-        "merchantUserId": "MUID123", # PASS SOME ID DO NOT MAKE IT THE PHONE NUMBER HAS TO BE GENERATED
-        "amount": 10000, # THE COST 
-        "redirectUrl": f"myapp://callback?transcationId={merchantTransactionId}", # FILL THE MERCHANT TRANSACTION ID HERE, WHATEVER YOU ASSIGNED ABOUVE
-        "redirectMode": "POST",
-        "callbackUrl": "https://webhook.site/callback-url", # kindly pass the phonepe_callback function url here however it works (the function above this one, it has to be called by this url)
-        "mobileNumber": "9999999999",
-        "paymentInstrument": {
-            "type": "PAY_PAGE"
-        }
-    }
-
-    payload_str = json.dumps(payload)
-    payload_b64 = base64.b64encode(payload_str.encode()).decode()
-    verify_str = f"{payload_b64}/pg/v1/pay{salt_key}"
-    verify_hash = hashlib.sha256(verify_str.encode()).hexdigest()
-    x_verify_header = f"{verify_hash}###{salt_index}"
-    headers['X-VERIFY'] = x_verify_header
-
-    response = requests.post(url, headers=headers, data=json.dumps(payload))
-
-    # Parse the response
-    if response.status_code == 200:
-        response_data = json.loads(response.text)
-        
-        # SAVE ALL THIS DATA PLEASE AND MAKE THE PAYMENT STATUS PENDING UNTIL IT IS CHANGED TO SUCCESS OR FAILURE BY OTHER METHODS
-#         SAMPLE_RESPONSE = {
-#   "success": true,
-#   "code": "PAYMENT_INITIATED",
-#   "message": "Payment Iniiated",
-#   "data": {
-#     "merchantId": "MERCHANTUAT",
-#     "merchantTransactionId": "MT7850590068188104",
-#     "instrumentResponse": {
-#         "type": "PAY_PAGE",
-#             "redirectInfo": {
-#             "url": "https://mercury-uat.phonepe.com/transact?token=MjdkNmQ0NjM2MTk5ZTlmNDcxYjY3NTAxNTY5MDFhZDk2ZjFjMDY0YTRiN2VhMjgzNjIwMjBmNzUwN2JiNTkxOWUwNDVkMTM2YTllOTpkNzNkNmM2NWQ2MWNiZjVhM2MwOWMzODU0ZGEzMDczNA",
-#         "method": "GET"
-#       }
-#     }
-#   }
-# }
-        if response_data['success']:
-            payment_url = response_data['data']['instrumentResponse']['redirectInfo']['url']
-            return JsonResponse({'payment_url': payment_url})
-        else:
-            return JsonResponse({'error': 'Failed to initiate payment'})
-    else:
-        return JsonResponse({'error': 'Failed to initiate payment'})
-        
-        
-        
-
 
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def initiate_payment1(request):
+def initiate_payment_standard(request):
     # Extract data from the request body
     merchant_user_id = request.data.get('merchantUserId')
     amount = request.data.get('amount')
     mobile_number = request.data.get('mobileNumber')
-    deviceos = request.data.get('deviceos')    
-    targetapp = request.data.get('targetapp')
     order_id = request.data.get('order_id')
     
 
@@ -226,18 +153,16 @@ def initiate_payment1(request):
     
     # Step 1: Create the request body
     payload = {
-        "merchantId": "MERCHANTUAT",
+        "merchantId": "PGTESTPAYUAT",
         "merchantTransactionId": transaction_id,
         "merchantUserId": merchant_user_id,
         "amount": amount,
-        "callbackUrl": "https://webhook.site/callback-url",
+        "redirectUrl": "https://elurufruits.store",
+        "redirectMode": "POST",        
+        "callbackUrl": "https://elurufruits.store/shop/api/callback/",
         "mobileNumber": mobile_number,
-        "deviceContext": {
-            "deviceOS": deviceos
-        },
         "paymentInstrument": {
-            "type": "UPI_INTENT",
-            "targetApp": targetapp
+            "type": "PAY_PAGE"
         }
     }
 
@@ -257,7 +182,7 @@ def initiate_payment1(request):
         "X-VERIFY": x_verify,
         "accept": "application/json"
     }
-    url = "https://api-preprod.phonepe.com/apis/merchant-simulator/pg/v1/pay"
+    url = "https://api-preprod.phonepe.com/apis/hermes/pg/v1/pay"
     response = requests.post(url, headers=headers, data=json.dumps({"request": encoded_payload}))
 
 
@@ -289,13 +214,109 @@ def initiate_payment1(request):
 
 
 
- 
+
+
+
+
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def initiate_payment_upi(request):
+    # Extract data from the request body
+    merchant_user_id = request.data.get('merchantUserId')
+    amount = request.data.get('amount')
+    mobile_number = request.data.get('mobileNumber')
+    deviceos = request.data.get('deviceos')    
+    targetapp = request.data.get('targetapp')
+    order_id = request.data.get('order_id')
+    
+
+    # Retrieve the Order instance associated with the order ID
+    order = Order.objects.get(id=order_id)
+
+    # Generate a new UUID as the transaction ID
+    transaction_id = str(uuid.uuid4())
+
+    # Create a new Transaction object and associate it with the order
+    transaction = Transaction.objects.create(order=order, transaction_ids=transaction_id, status='pending', attempt_number=1)
+    
+    
+    # Step 1: Create the request body
+    payload = {
+        "merchantId": "PGTESTPAYUAT",
+        "merchantTransactionId": transaction_id,
+        "merchantUserId": merchant_user_id,
+        "amount": amount,
+        "callbackUrl": "https://elurufruits.store/shop/api/callback/",
+        "mobileNumber": mobile_number,
+        "deviceContext": {
+            "deviceOS": deviceos
+        },
+        "paymentInstrument": {
+            "type": "UPI_INTENT",
+            "targetApp": targetapp
+        }
+    }
+
+    # Step 2: Encode the payload in Base64
+    encoded_payload = base64.b64encode(json.dumps(payload).encode()).decode()
+
+    # Step 3: Generate the SHA256 hash
+    key = "099eb0cd-02cf-4e2a-8aca-3e6c6aff0399"
+    sha256_hash = hashlib.sha256((encoded_payload + "/pg/v1/pay" + key).encode()).hexdigest()
+
+    # Step 4: Create the x-verify value
+    x_verify = sha256_hash + "###1"
+
+    # Step 5: Send the request to the payment gateway API
+    headers = {
+        "Content-Type": "application/json",
+        "X-VERIFY": x_verify,
+        "accept": "application/json"
+    }
+    url = "https://api-preprod.phonepe.com/apis/hermes/pg/v1/pay"
+    response = requests.post(url, headers=headers, data=json.dumps({"request": encoded_payload}))
+
+
+    # Process the response from the payment gateway
+    if response.status_code == 200:
+        payment_response = response.json()
+        
+        try:
+            # Update the "text_2" field in the Order object
+            order = Order.objects.get(id=order_id)
+            order.text_2 = "payment initiated"
+            order.save()
+        except Order.DoesNotExist:
+            return JsonResponse({"error": "Order not found"}, status=404)
+            
+
+        # Schedule check_status function 1 minute later
+        scheduled_time = datetime.now() + timedelta(minutes=0.5)
+        t = threading.Timer((scheduled_time - datetime.now()).total_seconds(), check_status, args=[transaction_id])
+        t.start()            
+            
+        
+        # Process the payment response
+        return JsonResponse(payment_response)
+    else:
+        # Payment failure
+        error_message = response.json().get("message")
+        return JsonResponse({"error": error_message}, status=response.status_code)
+
+
+
 
 
 @api_view(['POST'])
 def callback_url(request):
-    transaction_id = request.data.get('transaction_id')
-    status = request.data.get('status')
+    encoded_payload = request.data.get('response')
+    payload = base64.b64decode(encoded_payload).decode('utf-8')
+    data = json.loads(payload)
+    
+    transaction_id = data['data']['merchantTransactionId']
+    status = data['code']
 
     try:
         transaction = Transaction.objects.get(transaction_ids=transaction_id)
@@ -303,43 +324,97 @@ def callback_url(request):
         transaction.save()
 
         order = transaction.order
-        order.payment_status = 'Paid'
+        if status == 'PAYMENT_SUCCESS':
+            order.payment_status = 'Paid'
+        else:
+            order.payment_status = 'Not Paid'
         order.save()
 
         return Response({'message': 'Callback processed successfully.'})
     except Transaction.DoesNotExist:
         return Response({'message': 'Transaction not found.'})
 
- 
+   
+        
+
 
 def check_status(transaction_id):
     transaction = Transaction.objects.get(transaction_ids=transaction_id)
-    if transaction.status == 'Success':
+    order = transaction.order
+    
+    if transaction.status == 'PAYMENT_SUCCESS':
         return  # Terminate if the status is already marked as success
 
     order = transaction.order
     if order.payment_status == 'Paid':
-        return  # Terminate if the order's text_3 field is already set as "Paid"
+        return  # Terminate if the order status field is already set as "Paid"    
+    
+    
+    # Construct X-verify_token
+    endpoint = f"/pg/v1/status/PGTESTPAYUAT/{transaction_id}"
+    salt_key = "099eb0cd-02cf-4e2a-8aca-3e6c6aff0399"
+    salt_index = "1"
+    sha256 = hashlib.sha256((endpoint + salt_key).encode('utf-8')).hexdigest()
+    x_verify_token = sha256 + "###" + salt_index
 
-    api_url = f"https://retoolapi.dev/WW0qCa/data?uuid={transaction_id}"
-    response = requests.get(api_url)
+    # Make the API call
+    api_url = f"https://api-preprod.phonepe.com/apis/hermes{endpoint}"
+    headers = {
+        'Content-Type': 'application/json',
+        'X-MERCHANT-ID': 'PGTESTPAYUAT',
+        'X-VERIFY': x_verify_token,
+        'accept': 'application/json'
+    }
+    response = requests.get(api_url, headers=headers)
 
     if response.status_code == 200:
         api_response = json.loads(response.text)
         if api_response:
-            status_message = api_response[0].get("status")
+            status_message = api_response.get("code")
             if status_message:
                 transaction.status = status_message
                 transaction.save()
 
-                if status_message == 'Success':
+                if status_message == 'PAYMENT_SUCCESS':
                     order.payment_status = 'Paid'
-                    order.save()
+                else:
+                    order.payment_status = 'Not Paid'
+                    
+                order.save()
 
-    return
-        
-        
-        
+                # Handle PAYMENT_PENDING case
+                if status_message == 'PAYMENT_PENDING':
+                    timeout = time.time() + 15 * 60  # Set the timeout to 15 minutes
+                    while time.time() < timeout:
+                        time.sleep(3)
+                        response = requests.get(api_url, headers=headers)
+                        if response.status_code == 200:
+                            api_response = json.loads(response.text)
+                            if api_response:
+                                status_message = api_response.get("code")
+                                if status_message:
+                                    transaction.status = status_message
+                                    transaction.save()
+
+                                    if status_message == 'PAYMENT_SUCCESS':
+                                        order.payment_status = 'Paid'
+                                    else:
+                                        order.payment_status = 'Not Paid'
+                                    
+                                    order.save()
+
+                                    if status_message != 'PAYMENT_PENDING':
+                                        break
+
+    return HttpResponse(status=200)
+
+
+
+
+
+
+
+
 
 
 @api_view(['GET'])
