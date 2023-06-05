@@ -31,104 +31,6 @@ import threading
 
 
 
-salt_key = 'a6f786e0-b355-4e3c-9eda-092501a260b3'
-salt_index = '1'
-merchant_id = 'GROUPFRUITSONLINE'
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def check_payment(request):
-    if request.method == 'POST':
-        transaction_id = request.POST.get('transaction_id')
-        
-        payment = "STATUS" # VERY IMPORTANT GET THE PAYMENT STATUS HERE FROM YOUR DATABASE IF IT EXISTS, IF IT DOESNT MARK IT PENDING, IF IT IS PENDING IT WILL CHECK FROM PHONEPE
-        if payment:
-            status = payment.status
-        else:
-            status = check_payment_status(merchant_id, transaction_id)
-        
-        return JsonResponse({'status': status})
-    
-    return JsonResponse({'error': 'Method Not Allowed'}, status=405)
-
-def check_payment_status(transaction_id):
-    #https://developer.phonepe.com/v1/reference/check-status-api-1
-    url = f"https://api-preprod.phonepe.com/apis/merchant-simulator/pg/v1/status/{merchant_id}/{transaction_id}"
-    headers = {
-        'Content-Type': 'application/json',
-        'X-VERIFY': '',
-        'X-MERCHANT-ID': merchant_id
-    }
-    verify_str = f"/pg/v1/status/{merchant_id}/{transaction_id}{salt_key}"
-    verify_hash = hashlib.sha256(verify_str.encode()).hexdigest()
-    x_verify_header = f"{verify_hash}###{salt_index}"
-    headers['X-VERIFY'] = x_verify_header
-
-    status = None
-    timeout = 900  # 15 minutes timeout
-    interval = 20  # first check at 20 seconds
-    while timeout > 0:
-        response = requests.get(url, headers=headers)
-        if response.status_code == 200:
-            response_data = json.loads(response.text)
-            status = response_data.get('status')
-            if status != 'PENDING':
-                break
-        time.sleep(interval)
-        timeout -= interval
-        if interval == 20:
-            interval = 3
-        elif interval == 3 and timeout > 60:
-            interval = 6
-        elif interval == 6 and timeout > 120:
-            interval = 10
-        elif interval == 10 and timeout > 180:
-            interval = 30
-        else:
-            interval = 60
-    # Save the payment status in our database for future reference
-    ## SAVE THE STATUS TO THE DATABASE HERE
-    return status
-
-def phonepe_callback(request):
-    # https://developer.phonepe.com/v1/reference/server-to-server-callback-5
-    if request.method != 'POST':
-        return HttpResponseBadRequest('Invalid request method.')
-
-    callback_data = request.body
-    x_verify = request.META.get('HTTP_X_VERIFY')
-    expected_x_verify = hashlib.sha256(callback_data + salt_key.encode()).hexdigest() + '###' + salt_index
-    if x_verify != expected_x_verify:
-        return HttpResponseBadRequest('Invalid callback request.')
-
-    decoded_data = base64.b64decode(callback_data).decode()
-    data = json.loads(decoded_data)
-
-    success = data.get('success')
-    payment_state = data.get('data', {}).get('paymentState')    
-    # EXAMPLE_DATA = {
-    #     "success": true,
-    #     "code": "PAYMENT_SUCCESS",
-    #     "message": "Your request has been successfully completed.",
-    #     "data": {
-    #         "merchantId": "FKRT",
-    #         "merchantTransactionId": "MT7850590068188104",
-    #         "transactionId": "T2111221437456190170379",
-    #         "amount": 100,
-    #         "paymentState": "COMPLETED",
-    #         "payResponseCode": "PAYMENT_SUCCESS",
-    #         "paymentInstrument": {
-    #             "type": "UPI",
-    #             "utr": "206378866112"
-    #         }
-    #     }
-    # }
-    
-# KINDLY PROCESS THIS DATA (BANK, UPI AND CARD ALL HAVE DIFFERENT DATA. GO LOOK AT THE DOCS) AND SAVE IT APPROPRIATELY
-
-    return HttpResponse(status=200)
-
-
 
 
 @api_view(['POST'])
@@ -191,16 +93,16 @@ def initiate_payment_standard(request):
         payment_response = response.json()
         
         try:
-            # Update the "text_2" field in the Order object
+            # Update the "status" field in the Order object
             order = Order.objects.get(id=order_id)
-            order.text_2 = "payment initiated"
+            order.payment_status = "Payment Initiated"
             order.save()
         except Order.DoesNotExist:
             return JsonResponse({"error": "Order not found"}, status=404)
             
 
         # Schedule check_status function 1 minute later
-        scheduled_time = datetime.now() + timedelta(minutes=0.5)
+        scheduled_time = datetime.now() + timedelta(minutes=0.35)
         t = threading.Timer((scheduled_time - datetime.now()).total_seconds(), check_status, args=[transaction_id])
         t.start()            
             
@@ -239,7 +141,7 @@ def initiate_payment_upi(request):
     transaction_id = str(uuid.uuid4())
 
     # Create a new Transaction object and associate it with the order
-    transaction = Transaction.objects.create(order=order, transaction_ids=transaction_id, status='pending', attempt_number=1)
+    transaction = Transaction.objects.create(order=order, transaction_ids=transaction_id, status='Initiated', attempt_number=1)
     
     
     # Step 1: Create the request body
@@ -284,16 +186,16 @@ def initiate_payment_upi(request):
         payment_response = response.json()
         
         try:
-            # Update the "text_2" field in the Order object
+            # Update the "status" field in the Order object
             order = Order.objects.get(id=order_id)
-            order.text_2 = "payment initiated"
+            order.payment_status = "Payment Initiated"
             order.save()
         except Order.DoesNotExist:
             return JsonResponse({"error": "Order not found"}, status=404)
             
 
         # Schedule check_status function 1 minute later
-        scheduled_time = datetime.now() + timedelta(minutes=0.5)
+        scheduled_time = datetime.now() + timedelta(minutes=0.35)
         t = threading.Timer((scheduled_time - datetime.now()).total_seconds(), check_status, args=[transaction_id])
         t.start()            
             
@@ -321,13 +223,25 @@ def callback_url(request):
     try:
         transaction = Transaction.objects.get(transaction_ids=transaction_id)
         transaction.status = status
-        transaction.save()
+        transaction_data = api_response.get('data')
+		
+        if transaction_data:
+            transaction.payment_transaction_id = transaction_data.get('transactionId')
+            transaction.amount = transaction_data.get('amount')
+            transaction.state = transaction_data.get('state')
+            transaction.response_code = transaction_data.get('responseCode')
+            payment_instrument = transaction_data.get('paymentInstrument')
+            
+            if payment_instrument:
+                transaction.payment_instrument_type = payment_instrument.get('type')
+                transaction.payment_instrument_utr = payment_instrument.get('utr')
+                    
+        transaction.marked_by = "Callback Function"
+        transaction.save()	      
+       
 
         order = transaction.order
-        if status == 'PAYMENT_SUCCESS':
-            order.payment_status = 'Paid'
-        else:
-            order.payment_status = 'Not Paid'
+        order.payment_status = status_message
         order.save()
 
         return Response({'message': 'Callback processed successfully.'})
@@ -342,12 +256,12 @@ def check_status(transaction_id):
     transaction = Transaction.objects.get(transaction_ids=transaction_id)
     order = transaction.order
     
-    if transaction.status == 'PAYMENT_SUCCESS':
-        return  # Terminate if the status is already marked as success
+    if transaction.status in ['PAYMENT_SUCCESS', 'PAYMENT_ERROR', 'PAYMENT_DECLINED', 'TIMED_OUT']:
+        return  # Terminate if the status is already marked as success or failed
 
     order = transaction.order
-    if order.payment_status == 'Paid':
-        return  # Terminate if the order status field is already set as "Paid"    
+    if order.payment_status in ['PAYMENT_SUCCESS', 'PAYMENT_ERROR', 'PAYMENT_DECLINED', 'TIMED_OUT']:
+        return  # Terminate if the order status field is already set as success or fail
     
     
     # Construct X-verify_token
@@ -373,13 +287,23 @@ def check_status(transaction_id):
             status_message = api_response.get("code")
             if status_message:
                 transaction.status = status_message
+                transaction_data = api_response.get('data')
+                
+                if transaction_data:
+                    transaction.payment_transaction_id = transaction_data.get('transactionId')
+                    transaction.amount = transaction_data.get('amount')
+                    transaction.state = transaction_data.get('state')
+                    transaction.response_code = transaction_data.get('responseCode')
+                    payment_instrument = transaction_data.get('paymentInstrument')
+                    if payment_instrument:
+                        transaction.payment_instrument_type = payment_instrument.get('type')
+                        transaction.payment_instrument_utr = payment_instrument.get('utr')
+                    
+                transaction.marked_by = "Check Status Function"
                 transaction.save()
 
-                if status_message == 'PAYMENT_SUCCESS':
-                    order.payment_status = 'Paid'
-                else:
-                    order.payment_status = 'Not Paid'
-                    
+                order = transaction.order
+                order.payment_status = status_message
                 order.save()
 
                 # Handle PAYMENT_PENDING case
@@ -394,13 +318,22 @@ def check_status(transaction_id):
                                 status_message = api_response.get("code")
                                 if status_message:
                                     transaction.status = status_message
+                                    transaction_data = api_response.get('data')
+                                    
+                                    if transaction_data:
+                                        transaction.payment_transaction_id = transaction_data.get('transactionId')
+                                        transaction.amount = transaction_data.get('amount')
+                                        transaction.state = transaction_data.get('state')
+                                        transaction.response_code = transaction_data.get('responseCode')
+                                        payment_instrument = transaction_data.get('paymentInstrument')
+                                        if payment_instrument:
+                                            transaction.payment_instrument_type = payment_instrument.get('type')
+                                            transaction.payment_instrument_utr = payment_instrument.get('utr')                                    
+
+                                    transaction.marked_by = "Check Status Function"                                    
                                     transaction.save()
 
-                                    if status_message == 'PAYMENT_SUCCESS':
-                                        order.payment_status = 'Paid'
-                                    else:
-                                        order.payment_status = 'Not Paid'
-                                    
+                                    order.payment_status = status_message
                                     order.save()
 
                                     if status_message != 'PAYMENT_PENDING':

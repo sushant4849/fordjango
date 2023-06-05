@@ -212,7 +212,7 @@ class Order(models.Model):
     delivery_point = models.CharField(max_length=255, null=True, blank=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete = models.CASCADE)
     payment_type = models.CharField(max_length = 50, blank = True, null = True, default = 'On Arrival')
-    payment_status = models.CharField(max_length=50, blank = True, null = True, choices=[('Paid', 'Paid'), ('Not Paid', 'Not Paid')], default = 'Not Paid')
+    payment_status = models.CharField(max_length=255, blank = True, null = True)
     payment_provider = models.CharField(max_length=50, blank = True, null = True)
     coupon = models.ForeignKey(Coupon, on_delete = models.SET_NULL, blank = True, null = True)
     total_price = models.FloatField(blank = True, null = True)
@@ -338,8 +338,7 @@ class OrderItem(models.Model):
     def code(self):
         return self.order.code
     
-    
-    
+
 
 class Transaction(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE)
@@ -347,9 +346,13 @@ class Transaction(models.Model):
     status = models.CharField(max_length=20)
     timestamp = models.DateTimeField(auto_now_add=True)
     attempt_number = models.PositiveIntegerField(default=1)
-
-
-
+    payment_transaction_id = models.CharField(max_length=50, blank = True, null = True)
+    amount = models.IntegerField(default=0)  # Set a default value here
+    state = models.CharField(max_length=20, blank = True, null = True)
+    response_code = models.CharField(max_length=20, blank = True, null = True)
+    payment_instrument_type = models.CharField(max_length=20, blank = True, null = True)
+    payment_instrument_utr = models.CharField(max_length=20, blank = True, null = True)
+    marked_by = models.CharField(max_length=20, blank = True, null = True)
     
     
     
